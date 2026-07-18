@@ -7,6 +7,7 @@ from pathlib import Path
 
 from kivy.app import App
 from kivy.core.window import Window
+from kivy.core.text import LabelBase
 from kivy.graphics import Color, Rectangle
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
@@ -30,6 +31,26 @@ RED = (0.95, 0.30, 0.30, 1)
 TYPE_MULTIPLIERS = {"平日 1.5 倍": 1.5, "休息日 2 倍": 2.0, "节假日 3 倍": 3.0}
 
 
+def register_chinese_font():
+    """Use an Android system CJK font so Chinese text never becomes squares."""
+    candidates = (
+        "/system/fonts/NotoSansCJK-Regular.ttc",
+        "/system/fonts/NotoSansSC-Regular.otf",
+        "/system/fonts/NotoSansCJKsc-Regular.otf",
+        "/system/fonts/DroidSansFallback.ttf",
+    )
+    for font_path in candidates:
+        if Path(font_path).exists():
+            # Replace Kivy's default alias as well, covering Popup titles and
+            # Spinner dropdown options created internally by Kivy.
+            LabelBase.register(name="Roboto", fn_regular=font_path)
+            return "Roboto"
+    return "Roboto"
+
+
+APP_FONT = register_chinese_font()
+
+
 def paint(widget, color):
     with widget.canvas.before:
         widget._color = Color(*color)
@@ -39,14 +60,15 @@ def paint(widget, color):
 
 
 def label(text="", color=TEXT, **kwargs):
-    item = Label(text=text, color=color, **kwargs)
+    item = Label(text=text, color=color, font_name=APP_FONT, **kwargs)
     item.bind(size=lambda obj, _value: setattr(obj, "text_size", obj.size))
     return item
 
 
 def button(text, callback=None, danger=False, **kwargs):
     item = Button(text=text, color=TEXT if danger else BG, background_normal="",
-                  background_color=RED if danger else GREEN, **kwargs)
+                  background_color=RED if danger else GREEN,
+                  font_name=APP_FONT, **kwargs)
     if callback:
         item.bind(on_release=callback)
     return item
@@ -56,7 +78,8 @@ class DatePickerPopup(Popup):
     """Local calendar picker backed by the phone's system date."""
 
     def __init__(self, selected, callback, **kwargs):
-        super().__init__(title="选择日期", size_hint=(0.94, 0.74), **kwargs)
+        super().__init__(title="选择日期", title_font=APP_FONT,
+                         size_hint=(0.94, 0.74), **kwargs)
         self.year, self.month = selected.year, selected.month
         self.callback = callback
         root = BoxLayout(orientation="vertical", padding=dp(8), spacing=dp(6))
@@ -95,7 +118,8 @@ class DatePickerPopup(Popup):
                     self.days.add_widget(Label())
                     continue
                 day_button = Button(text=str(number), color=TEXT, background_normal="",
-                                    background_color=(.20, .22, .24, 1))
+                                    background_color=(.20, .22, .24, 1),
+                                    font_name=APP_FONT)
                 day_button.bind(on_release=lambda _btn, value=number: self.choose(value))
                 self.days.add_widget(day_button)
 
@@ -122,7 +146,7 @@ class OvertimeRoot(BoxLayout):
                                      hint_text="月基本工资（元）", multiline=False,
                                      input_filter="float", foreground_color=TEXT,
                                      hint_text_color=MUTED, background_normal="",
-                                     background_color=PANEL)
+                                     background_color=PANEL, font_name=APP_FONT)
         salary.add_widget(self.salary_input)
         salary.add_widget(button("保存底薪", self.save_salary, size_hint_x=.30))
         self.hourly = label(size_hint_x=.43, font_size="12sp", halign="center")
@@ -137,11 +161,12 @@ class OvertimeRoot(BoxLayout):
         self.hours_input = TextInput(hint_text="例如 2.5", multiline=False,
                                     input_filter="float", foreground_color=TEXT,
                                     hint_text_color=MUTED, background_normal="",
-                                    background_color=PANEL)
+                                    background_color=PANEL, font_name=APP_FONT)
         form.add_widget(self.hours_input)
         form.add_widget(label("加班类型（可以手动修改）", halign="left"))
         self.type_spinner = Spinner(values=tuple(TYPE_MULTIPLIERS), color=TEXT,
-                                    background_normal="", background_color=PANEL)
+                                    background_normal="", background_color=PANEL,
+                                    font_name=APP_FONT)
         form.add_widget(self.type_spinner)
         self.add_widget(form)
         self.add_widget(button("添加记录", self.add_record, size_hint_y=None, height=dp(44)))
@@ -255,7 +280,7 @@ class OvertimeRoot(BoxLayout):
         self.rows.clear_widgets()
         for record in self.state.get("records", []):
             row = Button(size_hint_y=None, height=dp(42), background_normal="",
-                         background_color=PANEL, color=TEXT)
+                         background_color=PANEL, color=TEXT, font_name=APP_FONT)
             row.record_id = record["id"]
             row.text = (f'{record["date"]}     {float(record["hours"]):g}h     '
                         f'{record["type"].replace(" ", "")}     ¥{float(record["pay"]):.2f}')
@@ -279,7 +304,8 @@ class OvertimeRoot(BoxLayout):
         content = BoxLayout(orientation="vertical", padding=dp(12), spacing=dp(10))
         content.add_widget(label("确定删除选中的加班记录吗？", halign="center"))
         actions = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
-        popup = Popup(title="删除确认", content=content, size_hint=(.82, .34))
+        popup = Popup(title="删除确认", title_font=APP_FONT,
+                      content=content, size_hint=(.82, .34))
         actions.add_widget(button("取消", lambda _btn: popup.dismiss()))
         actions.add_widget(button("确认删除", lambda _btn: self.delete(popup), danger=True))
         content.add_widget(actions)
