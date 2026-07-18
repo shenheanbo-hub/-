@@ -20,6 +20,7 @@ from kivy.uix.spinner import Spinner
 from kivy.uix.textinput import TextInput
 
 from holiday_calendar import HolidayCalendar
+from salary_calculator import monthly_salary_summary
 
 
 BG = (0.08, 0.09, 0.10, 1)
@@ -128,6 +129,43 @@ class DatePickerPopup(Popup):
         self.dismiss()
 
 
+class MonthlySalaryPopup(Popup):
+    """Dedicated current-month pre-tax salary summary screen."""
+
+    def __init__(self, state, **kwargs):
+        month = date.today().strftime("%Y-%m")
+        summary = monthly_salary_summary(state, month)
+        super().__init__(title=f"{month} 本月工资", title_font=APP_FONT,
+                         size_hint=(.92, .70), **kwargs)
+        root = BoxLayout(orientation="vertical", padding=dp(18), spacing=dp(10))
+        paint(root, PANEL)
+
+        root.add_widget(label("本月税前工资", GREEN, size_hint_y=None,
+                              height=dp(55), font_size="24sp", halign="center"))
+        total = label(f'¥{summary["gross_salary"]:.2f}', GREEN,
+                      size_hint_y=None, height=dp(75), font_size="34sp",
+                      halign="center")
+        root.add_widget(total)
+
+        details = GridLayout(cols=2, spacing=dp(8))
+        details.add_widget(label("月基本工资", MUTED, halign="left"))
+        details.add_widget(label(f'¥{summary["base_salary"]:.2f}', halign="right"))
+        details.add_widget(label("本月加班费", MUTED, halign="left"))
+        details.add_widget(label(f'¥{summary["overtime_pay"]:.2f}', halign="right"))
+        details.add_widget(label("本月加班时长", MUTED, halign="left"))
+        details.add_widget(label(f'{summary["overtime_hours"]:.2f} 小时', halign="right"))
+        details.add_widget(label("本月加班记录", MUTED, halign="left"))
+        details.add_widget(label(f'{summary["record_count"]} 条', halign="right"))
+        root.add_widget(details)
+
+        root.add_widget(label("税前工资 = 月基本工资 + 本月加班费", MUTED,
+                              size_hint_y=None, height=dp(32), font_size="12sp",
+                              halign="center"))
+        root.add_widget(button("关闭", lambda _btn: self.dismiss(),
+                               size_hint_y=None, height=dp(46)))
+        self.content = root
+
+
 class OvertimeRoot(BoxLayout):
     def __init__(self, data_path, holiday_path, **kwargs):
         super().__init__(orientation="vertical", spacing=dp(7), padding=dp(10), **kwargs)
@@ -141,6 +179,8 @@ class OvertimeRoot(BoxLayout):
 
         self.add_widget(label("加班薪资记录仪", GREEN, size_hint_y=None, height=dp(42),
                               font_size="22sp", halign="center"))
+        self.add_widget(button("查看本月税前工资", self.open_monthly_salary,
+                               size_hint_y=None, height=dp(42)))
         salary = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(6))
         self.salary_input = TextInput(text=str(self.state["monthly_salary"] or ""),
                                      hint_text="月基本工资（元）", multiline=False,
@@ -239,6 +279,9 @@ class OvertimeRoot(BoxLayout):
 
     def open_picker(self, _):
         DatePickerPopup(self.selected_date, self.date_selected).open()
+
+    def open_monthly_salary(self, _):
+        MonthlySalaryPopup(self.state).open()
 
     def date_selected(self, chosen):
         self.selected_date = chosen
